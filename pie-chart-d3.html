@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.5/d3.min.js"></script>
+<style>
+*{
+  margin:0;
+  padding:0;
+}
+body {
+    background:#eee;
+    width: 100%;
+    font-family: 'Roboto', sans-serif;
+    height: 100%;
+}
+path:hover {
+  transition-delay: 0;
+}
+#chart{
+  width:360px;
+  margin:10px auto;
+}
+#legend{
+	width: 402px;
+    margin: 0 auto;
+}
+
+#legend ul{
+  list-style:none;
+  overflow:hidden;
+
+}
+#legend li{
+  float:left;
+  padding: 5px 10px;
+}
+#legend a:link,
+#legend a:hover{
+  text-decoration:none;
+  color:#000;
+}
+
+#legend  a:active,
+#legend  a:visited{
+  color:#666;
+}
+
+
+.d3ToolTip {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    position: absolute;
+    width: auto;
+    height: auto;
+    background: none repeat scroll 0 0 white;
+    border: 0 none;
+    border-radius: 8px 8px 8px 8px;
+    box-shadow: -3px 3px 15px #888888;
+    color: black;
+    font: 12px sans-serif;
+    padding: 5px;
+    text-align: center;
+    transition: all ease .3s;
+}
+
+.totalCount,
+.approvals{
+  color:#999;
+}
+.legendCircle,
+#legend span{
+    border-radius: 50%;
+    width: 15px;
+    height: 15px;
+    float: left;
+    margin-top: 2px;
+    margin-right: 5px;
+}
+span.groupa{
+  background: #FFC107;
+}
+span.groupb{
+  background: #2290EE;
+}
+span.groupc{
+  background: #F44336;
+}
+span.groupd{
+  background: #009688;
+}
+@media (max-width: 400px) { 
+  #legend li{
+    text-align: left;
+    width: 40%;
+    float: none;
+    margin: 10px auto;
+  }
+  .d3ToolTip{
+    display:none;
+  }
+
+}
+</style>
+</head><body>
+
+<div class="chartContainer">
+    <div id="chart">
+    </div>
+    <div id="legend">
+    <ul>
+      <li><a href="#groupa"><span class="groupa" ></span> Group A</a></li>
+      <li><a href="#groupb"><span class="groupb" ></span> Group B</a></li>
+      <li><a href="#groupc"><span class="groupc" ></span> Group C </a></li>
+      <li><a href="#groupd"><span class="groupd" ></span> Group D</a></li>
+   </ul>
+   </div>
+</div>
+<script>
+var dataset = [
+        { label: 'Group A', count: 2, color: '#FFC107', url:'http://lmgtfy.com/?q=group A'},
+        { label: 'Group B', count: 3, color: '#2290EE', url: 'http://lmgtfy.com/?q=group B'}, 
+        { label: 'Group C', count: 4, color: '#F44336', url:'http://lmgtfy.com/?q=group C'}, 
+        { label: 'Group D', count: 5, color: '#009688', url:'http://lmgtfy.com/?q=group D'}
+    ];
+
+var width = 360,
+    height = 360,
+    outerRadius = height / 2 - 20,
+    innerRadius = outerRadius / 3,
+    cornerRadius = 10;
+
+
+
+var total = 14;
+
+ var svg = d3.select('#chart')
+   .append('svg')
+   .data([dataset])
+   .attr({ width:width, height:height, class:'shadow'  })
+   .append('g')
+   .attr('transform', 'translate(' + (width / 2) + ',' + (height / 2) + ')');
+
+var tooltipDiv = d3.select('body').append('div').attr('class', 'd3ToolTip').style('opacity', 0);
+
+var arc = d3.svg.arc().padRadius(outerRadius).innerRadius(innerRadius);
+
+var pie = d3.layout.pie()
+    .value(function(d){return d.count})
+    .sort(null)
+    .padAngle(.03);
+
+
+
+
+var arcs = svg.selectAll("slice")     
+        .data(pie)                         
+        .enter()                            
+            .append("g")                                
+              .attr("class", "slice");   
+
+
+    //slices
+    arcs.append("path")
+          .each(function(d) { d.outerRadius = outerRadius - 20; })
+          .attr("fill", function(d, i) { return d.data.color } ) 
+          .attr("d", arc)
+          .style({"cursor": "pointer"})
+          .on("mouseover", function(d){
+             arcTween(this, outerRadius, 0);
+             tooltipDiv.transition().duration(500).style('opacity', 0.8);
+             tooltipDiv.html(d.data.count + ' is ' + (((d.data.count/ total ) * 100)
+                          .toString().substr(0, 5)) + '%')
+                          .style('left', (d3.event.pageX + 28) + 'px')
+                          .style('top', (d3.event.pageY - 28) + 'px');
+          })
+          .on("mouseout", function(d){
+             arcTween(this, outerRadius - 20, 150);
+             tooltipDiv.transition().duration(500).style('opacity', 0);
+          })
+          .on("click", function(d){
+            window.location.href=d.data.url;
+          });
+
+    //append the text on each slices
+    arcs.append("text")                                    
+            .attr("transform", function(d) {                  
+            d.innerRadius = innerRadius;
+            d.outerRadius = outerRadius;
+            return "translate(" + arc.centroid(d) + ")";        
+        })
+        .attr("text-anchor", "middle")                       
+        .text(function(d, i) { return dataset[i].count; })
+        .on("click", function(d){
+            window.location.href=d.data.url;
+          })
+        .style({
+                fill:'#fff',
+                'font-size':'15px',
+                "cursor": "pointer"
+            });   
+
+    //main text
+    arcs.append("text").attr({x:-15, y:-5}).text(total).style({fill:'#666', font: '20px sans-serif'})
+    	.on("click", function(d){
+            window.location.href="http://lmgtfy.com/?q=d3js";
+         });
+
+    //subtext - first line
+    arcs.append("text").attr({x:-20, y:15}).text('subtext')
+        .style({fill:'#666', font: '12px sans-serif', "cursor": "pointer", 'text-align': 'center'})
+        .on("click", function(d){
+            window.location.href="http://lmgtfy.com/?q=d3js";
+         });
+
+    //subtext - second line
+    arcs.append("text").attr({x:-18, y:30}).text(' demo')
+        .style({fill:'#666', font: '12px sans-serif', "cursor": "pointer", 'text-align': 'center'})
+        .on("click", function(d){
+            window.location.href="http://lmgtfy.com/?q=d3js";
+         });
+
+    //tweening the slices 
+	function arcTween(elem, outerRadius, delay) {
+	    d3.select(elem).transition().delay(delay).attrTween("d", function(d) {
+	      var i = d3.interpolate(d.outerRadius, outerRadius);
+	      return function(t) { d.outerRadius = i(t); return arc(d); };
+	    });
+	}
+
+</script>
+</body></html>
