@@ -7,13 +7,21 @@
   padding:0;
 }
 body {
-    background:#eee;
+    background:#fff;
     width: 100%;
     font-family: 'Roboto', sans-serif;
     height: 100%;
 }
+path {
+    stroke: #fff;
+    stroke-width: 3px;
+}
 path:hover {
   transition-delay: 0;
+}
+text,
+.slice{
+  cursor:pointer;
 }
 #chart{
   width:360px;
@@ -111,119 +119,181 @@ span.groupd{
       <li><a href="#groupc"><span class="groupc" ></span> Group C </a></li>
       <li><a href="#groupd"><span class="groupd" ></span> Group D</a></li>
    </ul>
+
    </div>
+   <a href="#" class="updateChartLink" value="dataset1">refresh</a>
+
 </div>
 <script>
-var dataset = [
-        { label: 'Group A', count: 2, color: '#FFC107', url:'http://lmgtfy.com/?q=group A'},
-        { label: 'Group B', count: 3, color: '#2290EE', url: 'http://lmgtfy.com/?q=group B'}, 
-        { label: 'Group C', count: 4, color: '#F44336', url:'http://lmgtfy.com/?q=group C'}, 
-        { label: 'Group D', count: 5, color: '#009688', url:'http://lmgtfy.com/?q=group D'}
+ //tweening the slices - by radius
+ 
+  function tweenRadius(d) {
+        var i = d3.interpolate(d.outerRadius, outerRadius);
+        return function(t) { d.outerRadius = i(t); return arc(d); };
+  }
+  
+  function arcTween(elem, outerRadius, delay) {
+      d3.select(elem).transition().delay(delay).attrTween("d", function(d) {
+        var i = d3.interpolate(d.outerRadius, outerRadius);
+        return function(t) { d.outerRadius = i(t); return arc(d); };
+      });
+  }
+  function getToolTip(){
+      var toolTip = d3.select('.d3ToolTip');
+      if(!toolTip[0][0]){
+        toolTip = d3.select('body').append('div').attr('class', 'd3ToolTip').style('opacity', 0);
+      }
+      return toolTip;
+    }
+
+  function updateToolTip(d){
+    var tooltip = getToolTip();
+    tooltip.transition().duration(500).style('opacity', 0.8);
+    tooltip.html(d.data.count + ' is ' + (((d.data.count/ total ) * 100)
+          .toString().substr(0, 5)) + '%')
+          .style('left', (d3.event.pageX + 28) + 'px')
+          .style('top', (d3.event.pageY - 28) + 'px');
+
+  }
+  function hideToolTip(){
+    getToolTip().transition().duration(500).style('opacity', 0);
+  }
+  function tweenAngle(d) {
+       var i = d3.interpolate(d.startAngle+0.1, d.endAngle);
+       return function(t) {
+           d.endAngle = i(t);
+         return arc(d);
+       }
+  }
+  function tweenAngle(a) {
+      var i = d3.interpolate(this._current, a);
+      this._current = i(0);
+      return function(t) {
+        return arc(i(t));
+      };
+  }
+  function change() {
+    pieGroup.datum(dataset2);
+    pie.value(function(d) { return d.count; });
+    slicePath = slicePath.data(pie); // compute the new angles
+    sliceText = sliceText.data(pie);
+    sliceText = sliceText.text(function(d) { return d.value; });
+    slicePath.transition().duration(750).attrTween("d", tweenAngle); // redraw the arcs
+  }
+
+
+
+  
+var dataset1 = [
+      { label: 'Group A', count: 1, color: '#FFC107', url:'http://lmgtfy.com/?q=group A'},
+      { label: 'Group B', count: 3, color: '#2290EE', url: 'http://lmgtfy.com/?q=group B'}, 
+      { label: 'Group C', count: 5, color: '#F44336', url:'http://lmgtfy.com/?q=group C'},
+      { label: 'Group D', count: 7, color: '#009688', url:'http://lmgtfy.com/?q=group D'}
+    ];
+var dataset2 = [
+      { label: 'Group A', count: 0, color: '#FFC107', url:'http://lmgtfy.com/?q=group A'},
+      { label: 'Group B', count: 4, color: '#2290EE', url: 'http://lmgtfy.com/?q=group B'}, 
+      { label: 'Group C', count: 6, color: '#F44336', url:'http://lmgtfy.com/?q=group C'},
+      { label: 'Group D', count: 12, color: '#009688', url:'http://lmgtfy.com/?q=group D'}
     ];
 
 var width = 360,
     height = 360,
+    radius = Math.min(width, height) / 2,
     outerRadius = height / 2 - 20,
     innerRadius = outerRadius / 3,
-    cornerRadius = 10;
-
-
-
-var total = 14;
-
- var svg = d3.select('#chart')
-   .append('svg')
-   .data([dataset])
-   .attr({ width:width, height:height, class:'shadow'  })
-   .append('g')
-   .attr('transform', 'translate(' + (width / 2) + ',' + (height / 2) + ')');
-
-var tooltipDiv = d3.select('body').append('div').attr('class', 'd3ToolTip').style('opacity', 0);
-
-var arc = d3.svg.arc().padRadius(outerRadius).innerRadius(innerRadius);
+    cornerRadius = 10,
+    total = 14;
+ 
 
 var pie = d3.layout.pie()
-    .value(function(d){return d.count})
-    .sort(null)
-    .padAngle(.03);
+    .value(function(d) { return d.count; })
+    .sort(null);
+
+var arc = d3.svg.arc().innerRadius(innerRadius).outerRadius(outerRadius);
+
+var svg = d3.select('#chart').append("svg")
+    .attr({ width:width, height:height, class:'shadow'  });
+
+var pieGroup = svg
+    .append('g')
+    .attr('class', 'pieGroup')
+    .attr('transform', 'translate(' + (width / 2) + ',' + (height / 2) + ')');
+
+var slice = pieGroup
+    .datum(dataset1) 
+    .selectAll(".slice")  
+    .data(pie)                         
+    .enter()                            
+        .append("g")                                
+          .attr("class", "slice");  
+
+var slicePath = slice.append("path")
+    .attr("fill", function(d, i) { return d.data.color } ) 
+    .attr("d", arc)
+    .each(function(d) { this._current = d; })
+    //.transition().delay(function(d, i) { return i * 100; }).duration(100)
+    //.attrTween('d', tweenAngle)
+    ;
 
 
-
-
-var arcs = svg.selectAll("slice")     
-        .data(pie)                         
-        .enter()                            
-            .append("g")                                
-              .attr("class", "slice");   
-
-
-    //slices
-    arcs.append("path")
-          .each(function(d) { d.outerRadius = outerRadius - 20; })
-          .attr("fill", function(d, i) { return d.data.color } ) 
-          .attr("d", arc)
-          .style({"cursor": "pointer"})
-          .on("mouseover", function(d){
-             arcTween(this, outerRadius, 0);
-             tooltipDiv.transition().duration(500).style('opacity', 0.8);
-             tooltipDiv.html(d.data.count + ' is ' + (((d.data.count/ total ) * 100)
-                          .toString().substr(0, 5)) + '%')
-                          .style('left', (d3.event.pageX + 28) + 'px')
-                          .style('top', (d3.event.pageY - 28) + 'px');
-          })
-          .on("mouseout", function(d){
-             arcTween(this, outerRadius - 20, 150);
-             tooltipDiv.transition().duration(500).style('opacity', 0);
-          })
-          .on("click", function(d){
-            window.location.href=d.data.url;
-          });
-
-    //append the text on each slices
-    arcs.append("text")                                    
-            .attr("transform", function(d) {                  
-            d.innerRadius = innerRadius;
-            d.outerRadius = outerRadius;
-            return "translate(" + arc.centroid(d) + ")";        
+  //append the text on each slices
+var sliceText =   slice.append("text")                                    
+          .attr("transform", function(d) {                  
+          d.innerRadius = innerRadius;
+          d.outerRadius = outerRadius;
+          return "translate(" + arc.centroid(d) + ")";        
+      })
+      .attr("text-anchor", "middle")                       
+      .text(function(d) { return d.data.count; })
+      .on("click", function(d){
+          window.location.href=d.data.url;
         })
-        .attr("text-anchor", "middle")                       
-        .text(function(d, i) { return dataset[i].count; })
-        .on("click", function(d){
-            window.location.href=d.data.url;
-          })
-        .style({
-                fill:'#fff',
-                'font-size':'15px',
-                "cursor": "pointer"
-            });   
+      .style({
+              fill:'#fff',
+              'font-size':'15px',
+              "cursor": "pointer"
+          }); 
 
-    //main text
-    arcs.append("text").attr({x:-15, y:-5}).text(total).style({fill:'#666', font: '20px sans-serif'})
-    	.on("click", function(d){
-            window.location.href="http://lmgtfy.com/?q=d3js";
-         });
 
-    //subtext - first line
-    arcs.append("text").attr({x:-20, y:15}).text('subtext')
-        .style({fill:'#666', font: '12px sans-serif', "cursor": "pointer", 'text-align': 'center'})
-        .on("click", function(d){
-            window.location.href="http://lmgtfy.com/?q=d3js";
-         });
 
-    //subtext - second line
-    arcs.append("text").attr({x:-18, y:30}).text(' demo')
-        .style({fill:'#666', font: '12px sans-serif', "cursor": "pointer", 'text-align': 'center'})
-        .on("click", function(d){
-            window.location.href="http://lmgtfy.com/?q=d3js";
-         });
+  //main text
+  pieGroup.append("text").attr({x:-15, y:-5}).text(total).style({fill:'#666', font: '20px sans-serif'})
+    .on("click", function(d){
+          window.location.href="http://lmgtfy.com/?q=d3js";
+       });
 
-    //tweening the slices 
-	function arcTween(elem, outerRadius, delay) {
-	    d3.select(elem).transition().delay(delay).attrTween("d", function(d) {
-	      var i = d3.interpolate(d.outerRadius, outerRadius);
-	      return function(t) { d.outerRadius = i(t); return arc(d); };
-	    });
-	}
+  //subtext - first line
+  pieGroup.append("text").attr({x:-20, y:15}).text('subtext')
+      .style({fill:'#666', font: '12px sans-serif', "cursor": "pointer", 'text-align': 'center'})
+      .on("click", function(d){
+          window.location.href="http://lmgtfy.com/?q=d3js";
+       });
+
+  //subtext - second line
+  pieGroup.append("text").attr({x:-18, y:30}).text(' demo')
+    .style({fill:'#666', font: '12px sans-serif', "cursor": "pointer", 'text-align': 'center'})
+    .on("click", function(d){
+        window.location.href="http://lmgtfy.com/?q=d3js";
+     });
+
+
+slice
+    .on("mouseover", function(d){
+      arcTween(this, outerRadius, 0);
+       updateToolTip(d);
+    })
+    .on("mouseout", function(d){
+       arcTween(this, outerRadius - 20, 150);
+       hideToolTip();
+    })
+    .on("click", function(d){
+      window.location.href=d.data.url;
+    });
+
+d3.selectAll(".updateChartLink").on("click", change);
+
+
 
 </script>
 </body></html>
